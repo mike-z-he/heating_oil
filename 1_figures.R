@@ -5,26 +5,35 @@
 ## Required packages
 library(tidyverse)
 library(sf)
+# lizzy: added install.packages("spdep")
 library(spdep)
+# lizzy: added install.packages("spatialreg")
 library(spatialreg)
 library(janitor)
+# lizzy: added install.packages("patchwork")
 library(patchwork)
 library(maptools)
+# lizzy: added install.packages("rgeos")
 library(rgeos)
 library(rgdal)
 library(viridis)
+# lizzy: added install.packages("ggsn")
 library(ggsn)
 library(modelr)
 
-
-setwd("D:/Users/profu/Documents/Schoolwork/PhD/Research Projects/heating_oil/lyuou")
+# lizzy: ignore setwd, use relative paths
+# setwd("D:/Users/profu/Documents/Schoolwork/PhD/Research Projects/heating_oil/lyuou")
 options(mc.cores=parallel::detectCores())
 
 ### Reading in data
-dta <- st_read('model_data_export.shp')
+# lizzy: changed to relative path
+# lizzy: put 'heating_oil' repo inside 'data' folder you emailed me
+dta <- st_read('../model_data_export.shp')
 head(dta)
 
 ### Remove outliers ###
+# lizzy: why these cutoffs?
+# removed 15 census tracks
 dta <- dta[-which(dta$d_ro6>200 | dta$d_ro6< -20),]
 
 dta <- dta[-which((dta$delta_6< 5 & dta$d_ro6 >25)|dta$d_ro6 > 45),]
@@ -34,7 +43,7 @@ dta <- dta[-which(dta$d_ro4 >25), ]
 
 #### Figure 1 (Map) ####
 
-viz <- st_read('NYC tract.shp') %>% 
+viz <- st_read('../NYC tract.shp') %>% 
   rename(
     no2_16 = no2_16mean,
     so2_12 = so2_12_mea,
@@ -47,15 +56,26 @@ viz <- st_read('NYC tract.shp') %>%
     so2_diff = so2_12 - so2_16,
     pm_diff = pm_12 - pm_16
   ) %>% 
-  st_transform(., 4269) %>% 
+  st_transform(., 4269) %>% # change coordinate reference system
   as_Spatial()
   
 viz@data$id <- rownames(viz@data)
-gpclibPermit()
+gpclibPermit() # lizzy: what does this do?
 viz.fort <- broom::tidy(viz, region="id")
 viz_plot <- plyr::join(viz.fort, viz@data, by="id")
 
-no2_plot <- ggplot() + 
+# lizzy: checking ave diff
+#        names(viz_plot)
+#        summary(viz_plot$no2_diff)
+#        summary(viz_plot$so2_diff)
+#        summary(viz_plot$pm_diff)
+#        These don't match manuscript, maybe some weighting?
+
+# lizzy: I can't run this whole files because of overlapping object names
+#        no2_plot here is a map and later on it is a point and errorbar plot
+#        should have unique names
+#        I should be able to source this file all at once
+no2_plot_map <- ggplot() + 
   geom_blank(data = viz.fort, aes(long, lat)) + 
   geom_map(data = viz@data, map = viz.fort, aes(fill = no2_diff, map_id = id), size=0.15) +
   scale_fill_viridis(name = expression('Reduction in NO'[2] * ', ppb')) +
@@ -71,7 +91,7 @@ no2_plot <- ggplot() +
   north(viz_plot, scale = 0.12, symbol = 1, location="topright") + 
   scalebar(data = viz_plot, dist = 10, st.dist = 0.05, st.size = 4, dist_unit = 'km', transform = T, model = 'WGS84')
 
-so2_plot <- ggplot() + 
+so2_plot_map <- ggplot() + 
   geom_blank(data = viz.fort, aes(long, lat)) + 
   geom_map(data = viz@data, map = viz.fort, aes(fill = so2_diff, map_id = id), size=0.15) +
   scale_fill_viridis(name = expression('Reduction in SO'[2] * ', ppb')) +
@@ -87,7 +107,7 @@ so2_plot <- ggplot() +
   north(viz_plot, scale = 0.12, symbol = 1, location="topright") + 
   scalebar(data = viz_plot, dist = 10, st.dist = 0.05, st.size = 4, dist_unit = 'km', transform = T, model = 'WGS84')
 
-pm_plot <- ggplot() + 
+pm_plot_map <- ggplot() + 
   geom_blank(data = viz.fort, aes(long, lat)) + 
   geom_map(data = viz@data, map = viz.fort, aes(fill = pm_diff, map_id = id), size=0.15) +
   scale_fill_viridis(name = expression('Reduction in PM'[2.5] * ', ug/m'^3)) +
@@ -103,9 +123,7 @@ pm_plot <- ggplot() +
   north(viz_plot, scale = 0.12, symbol = 1, location="topright") + 
   scalebar(data = viz_plot, dist = 10, st.dist = 0.05, st.size = 4, dist_unit = 'km', transform = T, model = 'WGS84')
 
-so2_plot + pm_plot + no2_plot
-
-
+so2_plot_map + pm_plot_map + no2_plot_map
 
 #### Figure 2 (Main results) ####
 ### SO2
@@ -113,17 +131,21 @@ sen_so2 <- dta %>%
   filter(!is.na(so2_diff)) %>% 
   as_Spatial()
 
-nb_so2 <- poly2nb(sen_so2)
-wgt_so2 <- nb2listw(nb_so2)
+nb_so2 <- poly2nb(sen_so2)  # lizzy: what does this do?
+wgt_so2 <- nb2listw(nb_so2) # lizzy: what does this do?
 
 ## Spatial Lag Model, using new RO4 and RO6 data (delta_4 and delta_6)
 so2_lag <- lagsarlm(so2_diff ~ d_ro2 + delta_4 + delta_6 + d_ng + d_d2 + bus + hvytrk + 
                       medtrk + car + avg_year + med_income, data = sen_so2, listw = wgt_so2, 
                     zero.policy = TRUE, tol.solve = 1e-20)
+# lizzy: define these variables somewhere
+# lizzy: what does zero policy do?
+# lizzy: what does listw do?
 summary(so2_lag)$Coef %>% 
   knitr::kable(.)
 
 ## Original Model (RO2, RO4, RO6)
+# lizzy: what is the difference between this and above?
 so2_lag_original <- lagsarlm(so2_diff ~ d_ro2 + d_ro4 + d_ro6 + d_ng + d_d2 + bus + hvytrk + 
                                medtrk + car + avg_year + med_income, data = sen_so2, listw = wgt_so2, 
                              tol.solve = 1e-20, zero.policy = TRUE)
@@ -216,8 +238,12 @@ no2 <- rbind(no2_coef[4, ], no2_coef_original[4, ]) %>%
          upper = (estimate*10) + 1.96 * (std_error*10),
          lower = (estimate*10) - 1.96 * (std_error*10))
 
+so2
+pm
+no2
 
 ## Actual plots
+# lizzy: same name as above, should use new name
 so2_plot <- so2 %>% 
   ggplot() + 
   theme_bw() + 
@@ -261,8 +287,6 @@ no2_plot <- no2 %>%
   geom_hline(yintercept = 0)
 
 so2_plot + pm_plot + no2_plot
-
-
 
 #### Figure 3 (Effect Modification)####
 ## SO2
@@ -428,7 +452,8 @@ a + b + c
 
 
 #### Figure S1 ####
-ci_so2 <- read.csv("figure_s1_so2.csv")
+# lizzy: I don't have these files!!!
+ci_so2 <- read.csv("../figure_s1_so2.csv")
 d <- ci_so2 %>%
   ggplot() + 
   theme_bw() + 
@@ -443,7 +468,7 @@ d <- ci_so2 %>%
   labs(x = expression('SO'[2])) + 
   geom_hline(yintercept = 0)
 
-ci_pm <- read.csv("figure_s1_pm.csv")
+ci_pm <- read.csv("../figure_s1_pm.csv")
 e <- ci_pm %>%
   ggplot() + 
   theme_bw() + 
@@ -458,7 +483,7 @@ e <- ci_pm %>%
   labs(x = expression('PM'[2.5])) + 
   geom_hline(yintercept = 0)
 
-ci_no2 <- read.csv("figure_s1_no2.csv")
+ci_no2 <- read.csv("../figure_s1_no2.csv")
 f <- ci_no2 %>%
   ggplot() + 
   theme_bw() + 
