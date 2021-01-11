@@ -160,7 +160,7 @@ so2_plot <- so2 %>%
   theme_bw() + 
   geom_point(aes(x = var_name, y = pi, color = var_name)) + 
   geom_errorbar(aes(x = var_name, ymin = lower, ymax = upper, color = var_name)) +
-  ylim(0, 0.22) +
+  #ylim(0, 0.22) +
   scale_x_discrete(labels = c('Benchmark', 'Spot the Soot')) + 
   theme(legend.position = 'none',
         axis.text.x = element_text(size = 12),
@@ -175,7 +175,7 @@ pm_plot <- pm %>%
   theme_bw() + 
   geom_point(aes(x = var_name, y = pi, color = var_name)) + 
   geom_errorbar(aes(x = var_name, ymin = lower, ymax = upper, color = var_name)) +
-  ylim(0, 0.086) +
+  #ylim(0, 0.086) +
   scale_x_discrete(labels = c('Benchmark', 'Spot the Soot')) + 
   theme(legend.position = 'none',
         axis.text.x = element_text(size = 12),
@@ -190,7 +190,7 @@ no2_plot <- no2 %>%
   theme_bw() + 
   geom_point(aes(x = var_name, y = pi, color = var_name)) + 
   geom_errorbar(aes(x = var_name, ymin = lower, ymax = upper, color = var_name)) +
-  ylim(0, 0.27) +
+  #ylim(0, 0.27) +
   scale_x_discrete(labels = c('Benchmark', 'Spot the Soot')) + 
   theme(legend.position = 'none',
         axis.text.x = element_text(size = 12),
@@ -202,3 +202,7 @@ no2_plot <- no2 %>%
 
 ## This looks very similar to the plot in the markdown doc, but still slightly different...
 so2_plot + pm_plot + no2_plot
+
+# lizzy: this plot is like figure 2, but without ave yr or median income in the models
+# I had to remove ylim() from the plots bc it cut off the error bars
+# looks similar!

@@ -158,6 +158,11 @@ pm_map <- ggplot() +
 so2_map + pm_map + no2_map
 # lizzy: maps match!
 
+# lizzy: where is the code for this sentence in the results
+# 'Reductions in NO2 and SO2 were spatially dependent with the highest clusters in Midtown Manhattan and Upper East Side'
+# is it the moran's i on OLS residuals?
+# Do you do a local test for the clusters you mention in the manuscript or is that more qualitative?
+
 #### Figure 2 (Main results) ####
 ### SO2
 sen_so2 <- dta %>% 
@@ -262,6 +267,38 @@ no2_lag_original <- lagsarlm(no2_diff ~ d_ro2 + d_ro4 + d_ro6 + d_ng + d_d2 + bu
 
 summary(no2_lag_original)$Coef
 
+# lizzy: I used these model tables to check table S1 coefficients
+# you have confidence intervals for oil #6 in the next section
+# i don't see CI for oil, 2, 4, diesel, or natural gas, checking them here
+
+summary(no2_lag)$Coef %>% 
+  as_tibble(rownames = 'var_name') %>% 
+  janitor::clean_names() %>% 
+  mutate(pi = estimate*10,
+         lower = (estimate*10) - 1.96 * (std_error*10),
+         upper = (estimate*10) + 1.96 * (std_error*10)) %>% 
+  select(var_name, pi, lower, upper) %>% 
+  slice(2:6)
+
+summary(so2_lag)$Coef %>% 
+  as_tibble(rownames = 'var_name') %>% 
+  janitor::clean_names() %>% 
+  mutate(pi = estimate*10,
+         lower = (estimate*10) - 1.96 * (std_error*10),
+         upper = (estimate*10) + 1.96 * (std_error*10)) %>% 
+  select(var_name, pi, lower, upper) %>% 
+  slice(2:6)
+# lizzy: I get (-0.05, 0.12) as the CI for oil #4, manuscript table S1 has upper rounded to 0.11
+
+summary(pm_lag)$Coef %>% 
+  as_tibble(rownames = 'var_name') %>% 
+  janitor::clean_names() %>% 
+  mutate(pi = estimate*10,
+         lower = (estimate*10) - 1.96 * (std_error*10),
+         upper = (estimate*10) + 1.96 * (std_error*10)) %>% 
+  select(var_name, pi, lower, upper) %>% 
+  slice(2:6)
+
 ### Plot of all three
 
 ## Clean names
@@ -293,6 +330,7 @@ no2_coef_original <- summary(no2_lag_original)$Coef %>%
 
 # lizzy: row 4 is delta_6
 # delta_6: change in the number of buildings that used heating oil #6 (from Spot the Soot)
+# d_ro6: change in the number of buildings that used heating oil #6 (from Benchmark)
 so2 <- rbind(so2_coef[4, ], so2_coef_original[4, ]) %>% 
   mutate(pi = estimate*10,
          upper = (estimate*10) + 1.96 * (std_error*10),
@@ -357,6 +395,7 @@ no2_plot <- no2 %>%
   geom_hline(yintercept = 0)
 
 so2_plot + pm_plot + no2_plot
+# lizzy: Plots match manuscript!
 
 #### Figure 3 (Effect Modification)####
 ## SO2
@@ -375,24 +414,24 @@ so2_em_cat <- lagsarlm(so2_diff ~ d_ro2 + delta_4 + delta_6 + d_ng + d_d2 + bus 
 # get point estimates:
 so2_coef_cat <- so2_em_cat$coefficients
 
-so2_cat_coef1 <- (so2_coef_cat[4])*10
-so2_cat_coef2 <- (so2_coef_cat[4] + so2_coef_cat[13])*10
-so2_cat_coef3 <- (so2_coef_cat[4] + so2_coef_cat[14])*10
-so2_cat_coef4 <- (so2_coef_cat[4] + so2_coef_cat[15])*10
+so2_cat_coef1 <- (so2_coef_cat[4])*10 # delta6
+so2_cat_coef2 <- (so2_coef_cat[4] + so2_coef_cat[13])*10 # delta6 + interaction w income cat 2
+so2_cat_coef3 <- (so2_coef_cat[4] + so2_coef_cat[14])*10 # delta6 + interaction w income cat 3
+so2_cat_coef4 <- (so2_coef_cat[4] + so2_coef_cat[15])*10 # delta6 + interaction w income cat 4
 
 # get CIs:
 so2_cat_vcovs <- vcov(so2_em_cat)
 
-so2_cat_se1 <- (sqrt(so2_cat_vcovs[5,5]))*10
-so2_cat_se2 <- (sqrt(so2_cat_vcovs[5,5] + so2_cat_vcovs[14,14]))*10
-so2_cat_se3 <- (sqrt(so2_cat_vcovs[5,5] + so2_cat_vcovs[15,15]))*10
-so2_cat_se4 <- (sqrt(so2_cat_vcovs[5,5] + so2_cat_vcovs[16,16]))*10
+so2_cat_se1 <- (sqrt(so2_cat_vcovs[5,5]))*10 # st err delta6 
+so2_cat_se2 <- (sqrt(so2_cat_vcovs[5,5] + so2_cat_vcovs[14,14]))*10 # st err delta6 + st err interaction w income cat 2
+so2_cat_se3 <- (sqrt(so2_cat_vcovs[5,5] + so2_cat_vcovs[15,15]))*10 # st err delta6 + st err interaction w income cat 3
+so2_cat_se4 <- (sqrt(so2_cat_vcovs[5,5] + so2_cat_vcovs[16,16]))*10 # st err delta6 + st err interaction w income cat 4
 
-# plot interation with categorical med_income
+# plot interaction with categorical med_income
 a <- tibble(
   coef = c(so2_cat_coef1, so2_cat_coef2, so2_cat_coef3, so2_cat_coef4),
   se = c(so2_cat_se1, so2_cat_se2, so2_cat_se3, so2_cat_se4)
-) %>% 
+  ) %>% 
   mutate(
     upper_ci = coef + 1.96 * se,
     lower_ci = coef - 1.96 * se
@@ -430,7 +469,6 @@ pm_cat_coef3 <- (pm_coef_cat[4] + pm_coef_cat[14])*10
 pm_cat_coef4 <- (pm_coef_cat[4] + pm_coef_cat[15])*10
 
 # get CIs:
-
 pm_cat_vcovs <- vcov(pm_em_cat)
 
 pm_cat_se1 <- (sqrt(pm_cat_vcovs[5,5]))*10
@@ -438,7 +476,7 @@ pm_cat_se2 <- (sqrt(pm_cat_vcovs[5,5] + pm_cat_vcovs[14,14]))*10
 pm_cat_se3 <- (sqrt(pm_cat_vcovs[5,5] + pm_cat_vcovs[15,15]))*10
 pm_cat_se4 <- (sqrt(pm_cat_vcovs[5,5] + pm_cat_vcovs[16,16]))*10
 
-# plot interation with categorical med_income
+# plot interaction with categorical med_income
 b <- tibble(
   coef = c(pm_cat_coef1, pm_cat_coef2, pm_cat_coef3, pm_cat_coef4),
   se = c(pm_cat_se1, pm_cat_se2, pm_cat_se3, pm_cat_se4)
@@ -480,7 +518,6 @@ no2_cat_coef3 <- (no2_coef_cat[4] + no2_coef_cat[14])*10
 no2_cat_coef4 <- (no2_coef_cat[4] + no2_coef_cat[15])*10
 
 # get CIs:
-
 no2_cat_vcovs <- vcov(no2_em_cat)
 
 no2_cat_se1 <- (sqrt(no2_cat_vcovs[5,5]))*10
@@ -488,7 +525,7 @@ no2_cat_se2 <- (sqrt(no2_cat_vcovs[5,5] + no2_cat_vcovs[14,14]))*10
 no2_cat_se3 <- (sqrt(no2_cat_vcovs[5,5] + no2_cat_vcovs[15,15]))*10
 no2_cat_se4 <- (sqrt(no2_cat_vcovs[5,5] + no2_cat_vcovs[16,16]))*10
 
-# plot interation with categorical med_income
+# plot interaction with categorical med_income
 c <- tibble(
   coef = c(no2_cat_coef1, no2_cat_coef2, no2_cat_coef3, no2_cat_coef4),
   se = c(no2_cat_se1, no2_cat_se2, no2_cat_se3, no2_cat_se4)
@@ -514,6 +551,7 @@ c <- tibble(
 
 # a / b / c
 a + b + c
+# lizzy: matches figure 3
 
 ## Significance testing of effect modification using ANOVA (this doesn't work since its a spatial lag model)
 #anova(so2_lag, so2_em_cat, test = "Chisq")
@@ -528,7 +566,8 @@ d <- ci_so2 %>%
   ggplot() + 
   theme_bw() + 
   geom_point(aes(x = source, y = pi, color = source), position = position_dodge2(width = 0.5), size=2.5) + 
-  geom_errorbar(aes(x = source, ymin = lower, ymax = upper, color = source, linetype = analysis), position = position_dodge2(), size=1.2, width = 0.5) +
+  geom_errorbar(aes(x = source, ymin = lower, ymax = upper, color = source, linetype = analysis), 
+                position = position_dodge2(), size=1.2, width = 0.5) +
   scale_x_discrete(labels = c('Benchmark', 'Spot the Soot')) + 
   theme(legend.position = 'none',
         axis.text.x = element_text(size = 20),
@@ -543,7 +582,8 @@ e <- ci_pm %>%
   ggplot() + 
   theme_bw() + 
   geom_point(aes(x = source, y = pi, color = source), position = position_dodge2(width = 0.5), size=2.5) + 
-  geom_errorbar(aes(x = source, ymin = lower, ymax = upper, color = source, linetype = analysis), position = position_dodge2(), size=1.2, width = 0.5) +
+  geom_errorbar(aes(x = source, ymin = lower, ymax = upper, color = source, linetype = analysis), 
+                position = position_dodge2(), size=1.2, width = 0.5) +
   scale_x_discrete(labels = c('Benchmark', 'Spot the Soot')) + 
   theme(legend.position = 'none',
         axis.text.x = element_text(size = 20),
@@ -558,7 +598,8 @@ f <- ci_no2 %>%
   ggplot() + 
   theme_bw() + 
   geom_point(aes(x = source, y = pi, color = source), position = position_dodge2(width = 0.5), size=2.5) + 
-  geom_errorbar(aes(x = source, ymin = lower, ymax = upper, color = source, linetype = analysis), position = position_dodge2(), size=1.2, width = 0.5) +
+  geom_errorbar(aes(x = source, ymin = lower, ymax = upper, color = source, linetype = analysis), 
+                position = position_dodge2(), size=1.2, width = 0.5) +
   scale_x_discrete(labels = c('Benchmark', 'Spot the Soot')) + 
   theme(legend.position = 'none',
         axis.text.x = element_text(size = 20),
@@ -569,26 +610,36 @@ f <- ci_no2 %>%
   geom_hline(yintercept = 0)
 
 d + e + f
-
+# lizzy: figure matches supplement!
 
 
 #### Figure S2 ####
 ##Reading in data (Lyuou's code)
-soot_13 <- read_csv('CH_SpotSoot_2013.csv') %>% 
+soot_13 <- read_csv('../CH_SpotSoot_2013.csv') %>% 
   janitor::clean_names() %>% 
   mutate(
     bbl = as.character(bbl),
     year_built = as.numeric(year_built)
   )
 
-pluto <- read_csv('pluto_19v1.csv') %>% 
+# lizzy: i get this warning, but no errors
+# Warning: 29 parsing failures.
+#   1: Problem with `mutate()` input `year_built`.
+# ℹ NAs introduced by coercion
+# ℹ Input `year_built` is `as.numeric(year_built)`. 
+# 2: In mask$eval_all_mutate(dots[[i]]) : NAs introduced by coercion
+
+pluto <- read_csv('../pluto_19v1.csv') %>% 
   janitor::clean_names() %>% 
-  select(borough:ct2010, zipcode, address) # dropping some colunmns because we only need BBL and tracts 
+  select(borough:ct2010, zipcode, address) # dropping some columns because we only need BBL and tracts 
+
+# lizzy: i get this warning, but no errors
+# Warning: 13 parsing failures.
 
 # convert all acronyms to the boro codes, and padding the leading 0s in front of block and lot number
 pluto_tidy <- pluto %>% 
   mutate(
-    boro = ifelse(borough == 'MN', 1, ifelse(
+    boro = ifelse(borough == 'MN', 1, ifelse( # lizzy: case_when() syntax would help here
       borough == 'BX', 2, ifelse(
         borough == 'BK', 3, ifelse(
           borough == 'QN', 4, 5
@@ -607,7 +658,8 @@ pluto_tidy <- pluto %>%
   ) %>% 
   mutate(# create geoid
     geoid = str_pad(ct2010 * 100, 6, pad = '0'),
-    geoid = str_c('36', county_code, geoid, sep = ''), # geoid = state code (36) + county code (061, 005, 047, 081, 085) + census tract(6-digit)
+    geoid = str_c('36', county_code, geoid, sep = ''), 
+    # geoid = state code (36) + county code (061, 005, 047, 081, 085) + census tract(6-digit)
   ) %>% 
   mutate(# create bbl
     block = str_pad(block, 5, pad = '0'),
@@ -642,6 +694,9 @@ so2_sub <- model_sub %>%
   as_Spatial()
 nb_so2_sub <- poly2nb(so2_sub)
 wgt_so2_sub <- nb2listw(nb_so2_sub, zero.policy = TRUE)
+
+# lizzy: in the models above, 'zero.policy = TRUE' is only in the spatial regression model
+# does this change anything?
 
 so2_lag_sub <- lagsarlm(so2_diff ~ d_ro2 + delta_4 + delta_6 + d_ng + d_d2 + 
                           bus + hvytrk + medtrk + car + avg_year + med_income, 
@@ -687,17 +742,8 @@ summary(no2_lag_sub)$Coef %>%
 
 ## Plotting results
 ## Clean names
-no2_coef <- summary(no2_lag)$Coef %>% 
-  as_tibble(rownames = 'var_name') %>% 
-  janitor::clean_names()
 
-so2_coef <- summary(so2_lag)$Coef %>% 
-  as_tibble(rownames = 'var_name') %>% 
-  janitor::clean_names()
-
-pm_coef <- summary(pm_lag)$Coef %>% 
-  as_tibble(rownames = 'var_name') %>% 
-  janitor::clean_names()
+# lizzy: deleted repeated segment
 
 so2_coef_sub <- summary(so2_lag_sub)$Coef %>% 
   as_tibble(rownames = 'var_name') %>% 
@@ -716,6 +762,8 @@ so2_coef_sub$var_name[4] <- "Delta_6"
 pm_coef_sub$var_name[4] <- "Delta_6"
 no2_coef_sub$var_name[4] <- "Delta_6"
 
+# lizzy: this works, but is confusing! should have changed to 'Subset' or something obvious
+
 ## Calculate CIs (by per 10)
 so2 <- rbind(so2_coef[4, ], so2_coef_sub[4, ]) %>% 
   mutate(pi = estimate*10,
@@ -731,6 +779,9 @@ no2 <- rbind(no2_coef[4, ], no2_coef_sub[4, ]) %>%
   mutate(pi = estimate*10,
          upper = (estimate*10) + 1.96 * (std_error*10),
          lower = (estimate*10) - 1.96 * (std_error*10))
+
+# lizzy: ^ don't reuse data frame names!
+# lizzy: don't reuse plot names!
 
 ## Actual plots
 so2_plot <- so2 %>% 
@@ -777,11 +828,12 @@ no2_plot <- no2 %>%
 
 ## This looks very similiar to Figure 2...as expected
 so2_plot + pm_plot + no2_plot
-
+# lizzy: looks like figure S2!
 
 
 #### Table S2 ####
-## For this, we're using weight = wgt_no2 for all in order to be able to compare the residuals in the next step (need same sample size)
+## For this, we're using weight = wgt_no2 for all in order to be able to compare the residuals in the next step 
+## (need same sample size)
 ## SO2
 sen_no2 <- dta %>% 
   filter(!is.na(no2_diff)) %>% 
@@ -800,6 +852,9 @@ so2_ols %>%
   )
 
 lm.LMtests(so2_ols, wgt_no2, test=c("LMerr","RLMerr","LMlag","RLMlag","SARMA"), zero.policy = TRUE)
+# lizzy: Run Langrane Multiplier tests to identify the type of spatial regression model to run.
+
+# lizzy: why didn't you run a Durbin model? Since robust lag and error are both significant
 
 so2_lag_re <- lagsarlm(so2_diff ~ d_ro2 + delta_4 + delta_6 + d_ng + d_d2 + bus + hvytrk + 
                          medtrk + car + avg_year + med_income, data = sen_no2, listw = wgt_no2, 
@@ -830,7 +885,8 @@ pm_lag_re <- lagsarlm(pm_diff ~ d_ro2 + delta_4 + delta_6 + d_ng + d_d2 + bus + 
                          medtrk + car + avg_year + med_income, data = sen_no2, listw = wgt_no2, 
                        tol.solve = 1e-20, zero.policy = TRUE)
 
-summary(so2_lag_re)$Coef %>% 
+# lizzy: typo here, but doesn't affect results
+summary(pm_lag_re)$Coef %>% 
   as_tibble(rownames = 'term') %>% 
   janitor::clean_names() %>% 
   mutate(
@@ -855,7 +911,8 @@ no2_lag_re <- lagsarlm(no2_diff ~ d_ro2 + delta_4 + delta_6 + d_ng + d_d2 + bus 
                         medtrk + car + avg_year + med_income, data = sen_no2, listw = wgt_no2, 
                       tol.solve = 1e-20, zero.policy = TRUE)
 
-summary(so2_lag_re)$Coef %>% 
+# lizzy: same here, typo that doesn't matter
+summary(no2_lag_re)$Coef %>% 
   as_tibble(rownames = 'term') %>% 
   janitor::clean_names() %>% 
   mutate(
@@ -869,7 +926,7 @@ sen_no2 <- dta %>%
 
 res_ols <- sen_no2 %>% 
   as_tibble() %>% 
-  spread_residuals(data = ., so2_ols, pm_ols, no2_ols) %>% 
+  spread_residuals(data = ., so2_ols, pm_ols, no2_ols) %>% # lizzy: i have never seen this function, cool!
   select(geoid, geometry, so2_ols:no2_ols)
 
 # lag residuals
@@ -914,3 +971,6 @@ moran.test(res_lag$pm,listw = wgt_no2, na.action = na.exclude, zero.policy = TRU
 #NO2
 moran.test(res_ols$no2_ols,listw = wgt_no2, na.action = na.omit, zero.policy = TRUE)
 moran.test(res_lag$no2,listw = wgt_no2, na.action = na.exclude, zero.policy = TRUE)
+
+# lizzy: matches table S2
+# you can't really have a p-value of 1, it is just rounded by R, so I would put >0.999 in the table
