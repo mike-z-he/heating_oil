@@ -10,7 +10,7 @@ library(janitor)
 library(patchwork)
 
 
-setwd("D:/Users/profu/Documents/Schoolwork/PhD/Research Projects/heating_oil/lyuou")
+#setwd("D:/Users/profu/Documents/Schoolwork/PhD/Research Projects/heating_oil/lyuou")
 options(mc.cores=parallel::detectCores())
 
 
@@ -18,7 +18,8 @@ options(mc.cores=parallel::detectCores())
 ####Basic Models: SO2, PM2.5, NO2####
 
 ### Reading in data
-dta <- st_read('model_data_export.shp')
+# lizzy: changed to relative path
+dta <- st_read('../model_data_export.shp')
 head(dta)
 
 ### Remove outliers ###
@@ -38,6 +39,7 @@ nb_so2 <- poly2nb(sen_so2)
 wgt_so2 <- nb2listw(nb_so2)
 
 ## Spatial Lag Model, using new RO4 and RO6 data (delta_4 and delta_6)
+# lizzy: without ave yr or median income
 so2_lag <- lagsarlm(so2_diff ~ d_ro2 + delta_4 + delta_6 + d_ng + d_d2 + bus + hvytrk + 
                       medtrk + car, data = sen_so2, listw = wgt_so2, 
                     zero.policy = TRUE, tol.solve = 1e-20)
