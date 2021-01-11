@@ -28,11 +28,21 @@ options(mc.cores=parallel::detectCores())
 ### Reading in data
 # lizzy: changed to relative path
 # lizzy: put 'heating_oil' repo inside 'data' folder you emailed me
+# lizzy: all extra files you sent me are one folder above the working directory
 dta <- st_read('../model_data_export.shp')
 head(dta)
 
 ### Remove outliers ###
 # lizzy: why these cutoffs?
+
+# mike: I did this with Marianthi in her office back when we were inspecting potential 
+# outliers. These were either completely unreasonable numbers or numbers that were in severe disagreement with each other.
+# For example: delta_6 and d_ro6 refers to two different data sources that document changes away from heating oil #6. 
+# When these numbers differed drastically (e.g. 300 vs 3), we chose to remove these. Similar, we removed a handful of 
+# numbers that were very large or negative that seemed unreasonable (i.e. 250 conversions in a very small census tract; 
+# "negative" conversions which means that there were actually heating oil #6 boilers added in a tract, which is unreasonable 
+# since they were being banned, etc.)
+
 # removed 15 census tracks
 dta <- dta[-which(dta$d_ro6>200 | dta$d_ro6< -20),]
 
@@ -56,14 +66,18 @@ viz <- st_read('../NYC tract.shp') %>%
     so2_diff = so2_12 - so2_16,
     pm_diff = pm_12 - pm_16
   ) %>% 
-  st_transform(., 4269) %>% # change coordinate reference system
+  st_transform(., 4269) %>% # lizzy: this changes coordinate reference system
   as_Spatial()
   
 viz@data$id <- rownames(viz@data)
 gpclibPermit() # lizzy: what does this do?
-viz.fort <- broom::tidy(viz, region="id")
-viz_plot <- plyr::join(viz.fort, viz@data, by="id")
 
+# mike: it has to do with support in the maptools package. 
+# Depending on what packages I have active, this line may or may not be needed.
+
+viz.fort <- broom::tidy(viz, region="id") # lizzy: put lat, long, etc. in data frame
+viz_plot <- plyr::join(viz.fort, viz@data, by="id")
+head(viz_plot)
 # lizzy: checking ave diff
 #        names(viz_plot)
 #        summary(viz_plot$no2_diff)
@@ -71,11 +85,29 @@ viz_plot <- plyr::join(viz.fort, viz@data, by="id")
 #        summary(viz_plot$pm_diff)
 #        These don't match manuscript, maybe some weighting?
 
+# mike: Okay. I checked on this, and it seems like it is because the shapefile that is used to generate the map is 
+# different from the one used for the analysis, and the 15 census tracts removed in the analysis isn't removed in this 
+# shapefile. I'll remove them and regenerate the maps, but the averages if you use summary(dta$no2_diff) should provide 
+# the correct estimates.
+
+# lizzy: checking ave diff
+names(dta)
+summary(dta$no2_diff)
+mean(dta$no2_diff, na.rm = TRUE)/mean(dta$no2_12, na.rm = TRUE)
+
+summary(dta$so2_diff)
+mean(dta$so2_diff, na.rm = TRUE)/mean(dta$so2_12, na.rm = TRUE)
+
+summary(dta$pm_diff)
+mean(dta$pm_diff, na.rm = TRUE)/mean(dta$pm_12, na.rm = TRUE)
+
+# lizzy: Yep, that matches!
+
 # lizzy: I can't run this whole files because of overlapping object names
 #        no2_plot here is a map and later on it is a point and errorbar plot
 #        should have unique names
 #        I should be able to source this file all at once
-no2_plot_map <- ggplot() + 
+no2_map <- ggplot() + 
   geom_blank(data = viz.fort, aes(long, lat)) + 
   geom_map(data = viz@data, map = viz.fort, aes(fill = no2_diff, map_id = id), size=0.15) +
   scale_fill_viridis(name = expression('Reduction in NO'[2] * ', ppb')) +
@@ -91,7 +123,7 @@ no2_plot_map <- ggplot() +
   north(viz_plot, scale = 0.12, symbol = 1, location="topright") + 
   scalebar(data = viz_plot, dist = 10, st.dist = 0.05, st.size = 4, dist_unit = 'km', transform = T, model = 'WGS84')
 
-so2_plot_map <- ggplot() + 
+so2_map <- ggplot() + 
   geom_blank(data = viz.fort, aes(long, lat)) + 
   geom_map(data = viz@data, map = viz.fort, aes(fill = so2_diff, map_id = id), size=0.15) +
   scale_fill_viridis(name = expression('Reduction in SO'[2] * ', ppb')) +
@@ -107,7 +139,7 @@ so2_plot_map <- ggplot() +
   north(viz_plot, scale = 0.12, symbol = 1, location="topright") + 
   scalebar(data = viz_plot, dist = 10, st.dist = 0.05, st.size = 4, dist_unit = 'km', transform = T, model = 'WGS84')
 
-pm_plot_map <- ggplot() + 
+pm_map <- ggplot() + 
   geom_blank(data = viz.fort, aes(long, lat)) + 
   geom_map(data = viz@data, map = viz.fort, aes(fill = pm_diff, map_id = id), size=0.15) +
   scale_fill_viridis(name = expression('Reduction in PM'[2.5] * ', ug/m'^3)) +
@@ -123,7 +155,8 @@ pm_plot_map <- ggplot() +
   north(viz_plot, scale = 0.12, symbol = 1, location="topright") + 
   scalebar(data = viz_plot, dist = 10, st.dist = 0.05, st.size = 4, dist_unit = 'km', transform = T, model = 'WGS84')
 
-so2_plot_map + pm_plot_map + no2_plot_map
+so2_map + pm_map + no2_map
+# lizzy: maps match!
 
 #### Figure 2 (Main results) ####
 ### SO2
@@ -132,26 +165,58 @@ sen_so2 <- dta %>%
   as_Spatial()
 
 nb_so2 <- poly2nb(sen_so2)  # lizzy: what does this do?
+# lizzy: #Creates a queen's neighborhood weight matrix
+
 wgt_so2 <- nb2listw(nb_so2) # lizzy: what does this do?
+# lizzy: convert the neighborhood matrix into a list so that the connections between counties can be used in Moran's I test.
+
+# mike: Building neighbors and the construction of spatial weights, which are both required for the spatial analysis. 
+# these must be defined prior to running the spatial regression models.
 
 ## Spatial Lag Model, using new RO4 and RO6 data (delta_4 and delta_6)
 so2_lag <- lagsarlm(so2_diff ~ d_ro2 + delta_4 + delta_6 + d_ng + d_d2 + bus + hvytrk + 
                       medtrk + car + avg_year + med_income, data = sen_so2, listw = wgt_so2, 
                     zero.policy = TRUE, tol.solve = 1e-20)
 # lizzy: define these variables somewhere
+
+# d_ro2: change in the number of buildings that used heating oil #2 (from Benchmark)
+# d_ro4: change in the number of buildings that used heating oil #4 (from Benchmark)
+# d_ro6: change in the number of buildings that used heating oil #6 (from Benchmark)
+# delta_4: change in the number of buildings that used heating oil #4 (from Spot the Soot)
+# delta_6: change in the number of buildings that used heating oil #6 (from Spot the Soot)
+# d_ng: change in the number of buildings that used natural gas
+# d_d2: change in the number of buildings that used diesel #2
+# bus: vehicle miles traveled (VMT) by buses
+# hvytrk: miles traveled by heavy-duty trucks
+# medtrk: miles traveled by medium-duty trucks
+# car: miles traveled by cars
+# avg_year: year that the building was built
+# med_income: median household income (surrogate for SES per census tract)
+
 # lizzy: what does zero policy do?
+
+# mike: I believe this allows the spatial regression in the scenario that there are regions without neighbors.
+
 # lizzy: what does listw do?
-summary(so2_lag)$Coef %>% 
-  knitr::kable(.)
+
+# mike: Spatial weight objects that contains the information about neighbors
+
+summary(so2_lag)$Coef
 
 ## Original Model (RO2, RO4, RO6)
 # lizzy: what is the difference between this and above?
+
+# mike: So there are are actually two resources that we utilize for the heating oil conversion data: Benchmark (d_ro2, 
+# d_ro4, d_ro6) and Spot the Soot (delta_4 and delta_6). Long story short, Benchmark only provides heating oil conversion 
+# for buildings greater than 50k sq ft, so it doesn't cover all of the fuel conversions in a particular census tract. Spot 
+# the Soot covers the smaller buildings, but data is only available for conversion to/from heating oil #4 and #6, but not 
+# #2. Therefore, we ran the models twice to see whether changing the source of the data impacted the effect estimates.
+
 so2_lag_original <- lagsarlm(so2_diff ~ d_ro2 + d_ro4 + d_ro6 + d_ng + d_d2 + bus + hvytrk + 
                                medtrk + car + avg_year + med_income, data = sen_so2, listw = wgt_so2, 
                              tol.solve = 1e-20, zero.policy = TRUE)
-summary(so2_lag_original)$Coef %>%
-  knitr::kable(.)
 
+summary(so2_lag_original)$Coef
 
 ### PM2.5
 sen_pm <- dta %>% 
@@ -165,14 +230,15 @@ wgt_pm <- nb2listw(nb_pm)
 pm_lag <- lagsarlm(pm_diff ~ d_ro2 + delta_4 + delta_6 + d_ng + d_d2 + bus + hvytrk + 
                      medtrk + car + avg_year + med_income, data = sen_pm, listw = wgt_pm, 
                    tol.solve = 1e-20, zero.policy = TRUE)
+
 summary(pm_lag)$Coef
 
 ## Original Model
 pm_lag_original <- lagsarlm(pm_diff ~ d_ro2 + d_ro4 + d_ro6 + d_ng + d_d2 + bus + hvytrk + 
                               medtrk + car + avg_year + med_income, data = sen_pm, listw = wgt_pm, 
                             tol.solve = 1e-20, zero.policy = TRUE)
-summary(pm_lag_original)$Coef
 
+summary(pm_lag_original)$Coef
 
 ### NO2
 sen_no2 <- dta %>% 
@@ -186,14 +252,15 @@ wgt_no2 <- nb2listw(nb_no2)
 no2_lag <- lagsarlm(no2_diff ~ d_ro2 + delta_4 + delta_6 + d_ng + d_d2 + bus + hvytrk + 
                       medtrk + car + avg_year + med_income, data = sen_no2, listw = wgt_no2, 
                     tol.solve = 1e-20, zero.policy = TRUE)
+
 summary(no2_lag)$Coef
 
 ## Original Model
 no2_lag_original <- lagsarlm(no2_diff ~ d_ro2 + d_ro4 + d_ro6 + d_ng + d_d2 + bus + hvytrk + 
                                medtrk + car + avg_year + med_income, data = sen_no2, listw = wgt_no2, 
                              tol.solve = 1e-20, zero.policy = TRUE)
-summary(no2_lag_original)$Coef
 
+summary(no2_lag_original)$Coef
 
 ### Plot of all three
 
@@ -223,6 +290,9 @@ no2_coef_original <- summary(no2_lag_original)$Coef %>%
   janitor::clean_names()
 
 ## Calculate CIs (by per 10)
+
+# lizzy: row 4 is delta_6
+# delta_6: change in the number of buildings that used heating oil #6 (from Spot the Soot)
 so2 <- rbind(so2_coef[4, ], so2_coef_original[4, ]) %>% 
   mutate(pi = estimate*10,
          upper = (estimate*10) + 1.96 * (std_error*10),
