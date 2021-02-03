@@ -41,15 +41,11 @@ id.remove <- unique(dta.remove$geoid) # this isn't helpful since the IDs are dif
 no2.remove <- unique(dta.remove$no2_diff) # extracting the corresponding NO2 values
 
 ### Remove outliers ###
-<<<<<<< HEAD
 dta <- dta[-which(dta$d_ro6>200 | dta$d_ro6< -20),] #n=3
 
 dta <- dta[-which((dta$delta_6< 5 & dta$d_ro6 >25)|dta$d_ro6 > 45),] #n=9
 
 dta <- dta[-which(dta$d_ro4 >25), ] #n=3
-
-
-
 
 #### Table 1 (Descriptive Statistics) ####
 ## Subset data into quartiles
@@ -86,7 +82,6 @@ a <- dta%>%
     sd_d2 = sd(d_d2)
   )
 
-
 ## Air pollutants
 mean(dta$so2_diff, na.rm = TRUE)
 sd(dta$so2_diff, na.rm = TRUE)
@@ -107,7 +102,6 @@ b <- dta%>%
     mean_no2 = mean(no2_diff, na.rm = TRUE),
     sd_no2 = sd(no2_diff, na.rm = TRUE),
   )
-
 
 ## Vehicle miles traveled, miles (x1000)
 mean(dta$bus)/1000
@@ -151,7 +145,7 @@ d <- dta%>%
     mean_income = mean(med_income, na.rm = TRUE)/1000,
     sd_income = sd(med_income, na.rm = TRUE)/1000,
   )
-=======
+
 # lizzy: why these cutoffs?
 
 # mike: I did this with Marianthi in her office back when we were inspecting potential 
@@ -162,21 +156,13 @@ d <- dta%>%
 # "negative" conversions which means that there were actually heating oil #6 boilers added in a tract, which is unreasonable 
 # since they were being banned, etc.)
 
-# removed 15 census tracks
-dta <- dta[-which(dta$d_ro6>200 | dta$d_ro6< -20),]
->>>>>>> 1c60d9c2e635c4ab1044550fcd6d0f3325186a64
-
-
-
-
 #### Figure 1 (Map) ####
 
-<<<<<<< HEAD
 ## Because the old and new shape files are based on different IDs
 ## I can only match them based on an exposure level
 ## Matching based on no2_diff, rounded to the sixth decimal place
 
-viz <- st_read('NYC tract.shp') 
+viz <- st_read('../NYC tract.shp') 
 viz <- viz[-which(round(viz$no2_diff, digits = 6) == 3.521827),]
 viz <- viz[-which(round(viz$no2_diff, digits = 6) == 3.421536),]
 viz <- viz[-which(round(viz$no2_diff, digits = 6) == 4.828675),]
@@ -197,9 +183,6 @@ viz <- viz[-which(round(viz$no2_diff, digits = 6) == 2.071092),]
 
 viz <-
   viz %>% 
-=======
-viz <- st_read('../NYC tract.shp') %>% 
->>>>>>> 1c60d9c2e635c4ab1044550fcd6d0f3325186a64
   rename(
     no2_16 = no2_16mean,
     so2_12 = so2_12_mea,
@@ -221,9 +204,6 @@ gpclibPermit() # lizzy: what does this do?
 # mike: it has to do with support in the maptools package. 
 # Depending on what packages I have active, this line may or may not be needed.
 
-<<<<<<< HEAD
-so2_plot <- ggplot() + 
-=======
 viz.fort <- broom::tidy(viz, region="id") # lizzy: put lat, long, etc. in data frame
 viz_plot <- plyr::join(viz.fort, viz@data, by="id")
 head(viz_plot)
@@ -256,8 +236,8 @@ mean(dta$pm_diff, na.rm = TRUE)/mean(dta$pm_12, na.rm = TRUE)
 #        no2_plot here is a map and later on it is a point and errorbar plot
 #        should have unique names
 #        I should be able to source this file all at once
-no2_map <- ggplot() + 
->>>>>>> 1c60d9c2e635c4ab1044550fcd6d0f3325186a64
+
+so2_map <- ggplot() + 
   geom_blank(data = viz.fort, aes(long, lat)) + 
   geom_map(data = viz@data, map = viz.fort, aes(fill = so2_diff, map_id = id), size=0.15) +
   scale_fill_viridis(name = expression('Reduction in SO'[2] * ', ppb')) +
@@ -275,11 +255,7 @@ no2_map <- ggplot() +
   scalebar(data = viz_plot, dist = 10, st.dist = 0.05, st.size = 4, dist_unit = 'km', transform = T, model = 'WGS84') +
   annotate(geom = "text", x = -74.2, y = 40.85, label = "a)", size = 6)
 
-<<<<<<< HEAD
-pm_plot <- ggplot() + 
-=======
-so2_map <- ggplot() + 
->>>>>>> 1c60d9c2e635c4ab1044550fcd6d0f3325186a64
+pm_map <- ggplot() + 
   geom_blank(data = viz.fort, aes(long, lat)) + 
   geom_map(data = viz@data, map = viz.fort, aes(fill = pm_diff, map_id = id), size=0.15) +
   scale_fill_viridis(name = expression('Reduction in PM'[2.5] * ', ?g/m'^3), breaks = c(2, 4), labels = c(2, 4)) +
@@ -300,11 +276,7 @@ so2_map <- ggplot() +
   scalebar(data = viz_plot, dist = 10, st.dist = 0.05, st.size = 4, dist_unit = 'km', transform = T, model = 'WGS84') +
   annotate(geom = "text", x = -74.2, y = 40.85, label = "b)", size = 6)
 
-<<<<<<< HEAD
-no2_plot <- ggplot() + 
-=======
-pm_map <- ggplot() + 
->>>>>>> 1c60d9c2e635c4ab1044550fcd6d0f3325186a64
+no2_map <- ggplot() + 
   geom_blank(data = viz.fort, aes(long, lat)) + 
   geom_map(data = viz@data, map = viz.fort, aes(fill = no2_diff, map_id = id), size=0.15) +
   scale_fill_viridis(name = expression('Reduction in NO'[2] * ', ppb')) +
