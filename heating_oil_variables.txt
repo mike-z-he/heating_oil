@@ -1,0 +1,18 @@
+so2_diff: difference in SO2 from 2016 versus 2012
+pm_diff: difference in PM2.5 from 2016 versus 2012
+no2_diff: difference in NO2 from 2016 versus 2012
+d_ro2: change in the number of buildings that used heating oil #2 (from Benchmark)
+d_ro4: change in the number of buildings that used heating oil #4 (from Benchmark)
+d_ro6: change in the number of buildings that used heating oil #6 (from Benchmark)
+delta_4: change in the number of buildings that used heating oil #4 (from Spot the Soot)
+delta_6: change in the number of buildings that used heating oil #6 (from Spot the Soot)
+d_ng: change in the number of buildings that used natural gas
+d_d2: change in the number of buildings that used diesel #2
+bus: vehicle miles traveled (VMT) by buses
+VMT: sum of miles travelled a certain type of vehicle in a geographic area over a certain period of time
+hvytrk: miles traveled by heavy-duty trucks
+medtrk: miles traveled by medium-duty trucks
+car: miles traveled by cars
+avg_year: year that the building was built
+med_income: median household income (surrogate for SES per census tract)
+income_cat: median household income by quartiles (for the effect modification analysis)
