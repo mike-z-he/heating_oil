@@ -24,17 +24,155 @@ options(mc.cores=parallel::detectCores())
 dta <- st_read('model_data_export.shp')
 head(dta)
 
+## Figure out what the outliers are (run before removing)
+dta.remove <- rbind(dta[which(dta$d_ro6>200 | dta$d_ro6< -20),], 
+                    dta[which((dta$delta_6< 5 & dta$d_ro6 >25)|dta$d_ro6 > 45),],
+                    dta[which(dta$d_ro4 >25), ])
+
+id.remove <- unique(dta.remove$geoid) # this isn't helpful since the IDs are different
+no2.remove <- unique(dta.remove$no2_diff) # extracting the corresponding NO2 values
+
 ### Remove outliers ###
-dta <- dta[-which(dta$d_ro6>200 | dta$d_ro6< -20),]
+dta <- dta[-which(dta$d_ro6>200 | dta$d_ro6< -20),] #n=3
 
-dta <- dta[-which((dta$delta_6< 5 & dta$d_ro6 >25)|dta$d_ro6 > 45),]
+dta <- dta[-which((dta$delta_6< 5 & dta$d_ro6 >25)|dta$d_ro6 > 45),] #n=9
 
-dta <- dta[-which(dta$d_ro4 >25), ]
+dta <- dta[-which(dta$d_ro4 >25), ] #n=3
+
+
+
+
+#### Table 1 (Descriptive Statistics) ####
+## Subset data into quartiles
+dta$income_cat <- ntile(dta$med_income, 4) #64 NAs in med_income
+
+## Fuels
+mean(dta$d_ro2) # this is from Benchmark, because conversion fuel data on #2 does not exist in Spot the Soot
+sd(dta$d_ro2)
+
+mean(dta$delta_4) # these are delta_4 instead of d_ro4 since we are presenting the Spot the Soot results
+sd(dta$delta_4)
+
+mean(dta$delta_6)
+sd(dta$delta_6)
+
+mean(dta$d_ng)
+sd(dta$d_ng)
+
+mean(dta$d_d2)
+sd(dta$d_d2)
+
+a <- dta%>%
+  group_by(income_cat) %>%
+  summarize(
+    mean_ro2 = mean(d_ro2),
+    sd_ro2 = sd(d_ro2),
+    mean_delta4 = mean(delta_4),
+    sd_delta4 = sd(delta_4),
+    mean_delta6 = mean(delta_6),
+    sd_delta6 = sd(delta_6),
+    mean_ng = mean(d_ng),
+    sd_ng = sd(d_ng),
+    mean_d2 = mean(d_d2),
+    sd_d2 = sd(d_d2)
+  )
+
+
+## Air pollutants
+mean(dta$so2_diff, na.rm = TRUE)
+sd(dta$so2_diff, na.rm = TRUE)
+
+mean(dta$pm_diff, na.rm = TRUE)
+sd(dta$pm_diff, na.rm = TRUE)
+
+mean(dta$no2_diff, na.rm = TRUE)
+sd(dta$no2_diff, na.rm = TRUE)
+
+b <- dta%>%
+  group_by(income_cat) %>%
+  summarize(
+    mean_so2 = mean(so2_diff, na.rm = TRUE),
+    sd_so2 = sd(so2_diff, na.rm = TRUE),
+    mean_pm = mean(pm_diff, na.rm = TRUE),
+    sd_pm = sd(pm_diff, na.rm = TRUE),
+    mean_no2 = mean(no2_diff, na.rm = TRUE),
+    sd_no2 = sd(no2_diff, na.rm = TRUE),
+  )
+
+
+## Vehicle miles traveled, miles (x1000)
+mean(dta$bus)/1000
+sd(dta$bus)/1000
+
+mean(dta$hvytrk)/1000
+sd(dta$hvytrk)/1000
+
+mean(dta$medtrk)/1000
+sd(dta$medtrk)/1000
+
+mean(dta$car)/1000
+sd(dta$car)/1000
+
+c <- dta%>%
+  group_by(income_cat) %>%
+  summarize(
+    mean_bus = mean(bus)/1000,
+    sd_bus = sd(bus)/1000,
+    mean_hvytrk = mean(hvytrk)/1000,
+    sd_hvytrk = sd(hvytrk)/1000,
+    mean_medtrk = mean(medtrk)/1000,
+    sd_medtrk = sd(medtrk)/1000,
+    mean_car = mean(car)/1000,
+    sd_car = sd(car)/1000
+  )
+
+
+## Year built/median household income (x1000)
+mean(dta$avg_year, na.rm = TRUE)
+sd(dta$avg_year, na.rm = TRUE)
+
+mean(dta$med_income, na.rm = TRUE)/1000
+sd(dta$med_income, na.rm = TRUE)/1000
+
+d <- dta%>%
+  group_by(income_cat) %>%
+  summarize(
+    mean_year = mean(avg_year, na.rm = TRUE),
+    sd_year = sd(avg_year, na.rm = TRUE),
+    mean_income = mean(med_income, na.rm = TRUE)/1000,
+    sd_income = sd(med_income, na.rm = TRUE)/1000,
+  )
+
+
 
 
 #### Figure 1 (Map) ####
 
-viz <- st_read('NYC tract.shp') %>% 
+## Because the old and new shape files are based on different IDs
+## I can only match them based on an exposure level
+## Matching based on no2_diff, rounded to the sixth decimal place
+
+viz <- st_read('NYC tract.shp') 
+viz <- viz[-which(round(viz$no2_diff, digits = 6) == 3.521827),]
+viz <- viz[-which(round(viz$no2_diff, digits = 6) == 3.421536),]
+viz <- viz[-which(round(viz$no2_diff, digits = 6) == 4.828675),]
+viz <- viz[-which(round(viz$no2_diff, digits = 6) == 5.898099),]
+viz <- viz[-which(round(viz$no2_diff, digits = 6) == 6.398452),]
+viz <- viz[-which(round(viz$no2_diff, digits = 6) == 4.052781),]
+viz <- viz[-which(round(viz$no2_diff, digits = 6) == 3.625681),]
+viz <- viz[-which(round(viz$no2_diff, digits = 6) == 7.468937),]
+viz <- viz[-which(round(viz$no2_diff, digits = 6) == 3.683786),]
+viz <- viz[-which(round(viz$no2_diff, digits = 6) == 4.509529),]
+viz <- viz[-which(round(viz$no2_diff, digits = 6) == 2.693282),]
+viz <- viz[-which(round(viz$no2_diff, digits = 6) == 3.477633),]
+viz <- viz[-which(round(viz$no2_diff, digits = 6) == 4.241975),]
+viz <- viz[-which(round(viz$no2_diff, digits = 6) == 2.733928),]
+viz <- viz[-which(round(viz$no2_diff, digits = 6) == 2.071092),]
+
+## "Brute force method", but it works (n = 2151)
+
+viz <-
+  viz %>% 
   rename(
     no2_16 = no2_16mean,
     so2_12 = so2_12_mea,
@@ -49,27 +187,11 @@ viz <- st_read('NYC tract.shp') %>%
   ) %>% 
   st_transform(., 4269) %>% 
   as_Spatial()
-  
+
 viz@data$id <- rownames(viz@data)
 gpclibPermit()
 viz.fort <- broom::tidy(viz, region="id")
 viz_plot <- plyr::join(viz.fort, viz@data, by="id")
-
-no2_plot <- ggplot() + 
-  geom_blank(data = viz.fort, aes(long, lat)) + 
-  geom_map(data = viz@data, map = viz.fort, aes(fill = no2_diff, map_id = id), size=0.15) +
-  scale_fill_viridis(name = expression('Reduction in NO'[2] * ', ppb')) +
-  coord_equal() +
-  theme_bw() +
-  theme(legend.position = c(0.2, 0.75),
-        legend.text = element_text(size = 12),
-        legend.title = element_text(size = 12),
-        legend.background = element_rect(color = 'black'),
-        axis.title.x = element_blank(),
-        axis.title.y = element_blank(),
-        axis.text = element_text(size=12)) +
-  north(viz_plot, scale = 0.12, symbol = 1, location="topright") + 
-  scalebar(data = viz_plot, dist = 10, st.dist = 0.05, st.size = 4, dist_unit = 'km', transform = T, model = 'WGS84')
 
 so2_plot <- ggplot() + 
   geom_blank(data = viz.fort, aes(long, lat)) + 
@@ -77,31 +199,59 @@ so2_plot <- ggplot() +
   scale_fill_viridis(name = expression('Reduction in SO'[2] * ', ppb')) +
   coord_equal() +
   theme_bw() +
-  theme(legend.position = c(0.2, 0.75),
-        legend.text = element_text(size = 12),
-        legend.title = element_text(size = 12),
+  theme(legend.position = "bottom",
+        #legend.position = c(0.2, 0.75),
+        legend.text = element_text(size = 18),
+        legend.title = element_text(size = 18),
         legend.background = element_rect(color = 'black'),
         axis.title.x = element_blank(),
         axis.title.y = element_blank(),
-        axis.text = element_text(size=12)) +
+        axis.text = element_text(size=14)) +
   north(viz_plot, scale = 0.12, symbol = 1, location="topright") + 
-  scalebar(data = viz_plot, dist = 10, st.dist = 0.05, st.size = 4, dist_unit = 'km', transform = T, model = 'WGS84')
+  scalebar(data = viz_plot, dist = 10, st.dist = 0.05, st.size = 4, dist_unit = 'km', transform = T, model = 'WGS84') +
+  annotate(geom = "text", x = -74.2, y = 40.85, label = "a)", size = 6)
 
 pm_plot <- ggplot() + 
   geom_blank(data = viz.fort, aes(long, lat)) + 
   geom_map(data = viz@data, map = viz.fort, aes(fill = pm_diff, map_id = id), size=0.15) +
-  scale_fill_viridis(name = expression('Reduction in PM'[2.5] * ', ug/m'^3)) +
+  scale_fill_viridis(name = expression('Reduction in PM'[2.5] * ', ?g/m'^3), breaks = c(2, 4), labels = c(2, 4)) +
   coord_equal() +
   theme_bw() +
-  theme(legend.position = c(0.2, 0.75),
-        legend.text = element_text(size = 12),
-        legend.title = element_text(size = 12),
+  theme(legend.position = "bottom",
+        #legend.position = c(0.2, 0.75),
+        legend.text = element_text(size = 18),
+        legend.title = element_text(size = 18),
         legend.background = element_rect(color = 'black'),
         axis.title.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.text.x = element_blank(),
         axis.title.y = element_blank(),
-        axis.text = element_text(size = 12)) +
+        axis.ticks.y = element_blank(),
+        axis.text.y = element_blank()) +
   north(viz_plot, scale = 0.12, symbol = 1, location="topright") + 
-  scalebar(data = viz_plot, dist = 10, st.dist = 0.05, st.size = 4, dist_unit = 'km', transform = T, model = 'WGS84')
+  scalebar(data = viz_plot, dist = 10, st.dist = 0.05, st.size = 4, dist_unit = 'km', transform = T, model = 'WGS84') +
+  annotate(geom = "text", x = -74.2, y = 40.85, label = "b)", size = 6)
+
+no2_plot <- ggplot() + 
+  geom_blank(data = viz.fort, aes(long, lat)) + 
+  geom_map(data = viz@data, map = viz.fort, aes(fill = no2_diff, map_id = id), size=0.15) +
+  scale_fill_viridis(name = expression('Reduction in NO'[2] * ', ppb')) +
+  coord_equal() +
+  theme_bw() +
+  theme(legend.position = "bottom",
+        #legend.position = c(0.2, 0.75),
+        legend.text = element_text(size = 18),
+        legend.title = element_text(size = 18),
+        legend.background = element_rect(color = 'black'),
+        axis.title.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.text.y = element_blank()) +
+  north(viz_plot, scale = 0.12, symbol = 1, location="topright") + 
+  scalebar(data = viz_plot, dist = 10, st.dist = 0.05, st.size = 4, dist_unit = 'km', transform = T, model = 'WGS84') +
+  annotate(geom = "text", x = -74.2, y = 40.85, label = "c)", size = 6)
 
 so2_plot + pm_plot + no2_plot
 
@@ -607,7 +757,7 @@ pm_coef <- summary(pm_lag)$Coef %>%
 so2_coef_sub <- summary(so2_lag_sub)$Coef %>% 
   as_tibble(rownames = 'var_name') %>% 
   janitor::clean_names()
-  
+
 pm_coef_sub <- summary(pm_lag_sub)$Coef %>% 
   as_tibble(rownames = 'var_name') %>% 
   janitor::clean_names()
@@ -721,7 +871,7 @@ summary(so2_lag_re)$Coef %>%
 
 ## PM2.5
 pm_ols <- lm(pm_diff ~ d_ro2 + delta_4 + delta_6 + d_ng + d_d2 + bus + hvytrk + medtrk + car + 
-                avg_year + med_income, data = sen_no2)
+               avg_year + med_income, data = sen_no2)
 
 pm_ols %>% 
   broom::tidy() %>% 
@@ -732,8 +882,8 @@ pm_ols %>%
 lm.LMtests(pm_ols, wgt_no2, test=c("LMerr","RLMerr","LMlag","RLMlag","SARMA"), zero.policy = TRUE)
 
 pm_lag_re <- lagsarlm(pm_diff ~ d_ro2 + delta_4 + delta_6 + d_ng + d_d2 + bus + hvytrk + 
-                         medtrk + car + avg_year + med_income, data = sen_no2, listw = wgt_no2, 
-                       tol.solve = 1e-20, zero.policy = TRUE)
+                        medtrk + car + avg_year + med_income, data = sen_no2, listw = wgt_no2, 
+                      tol.solve = 1e-20, zero.policy = TRUE)
 
 summary(so2_lag_re)$Coef %>% 
   as_tibble(rownames = 'term') %>% 
@@ -746,7 +896,7 @@ summary(so2_lag_re)$Coef %>%
 
 ## NO2
 no2_ols <- lm(no2_diff ~ d_ro2 + delta_4 + delta_6 + d_ng + d_d2 + bus + hvytrk + medtrk + car + 
-               avg_year + med_income, data = sen_no2)
+                avg_year + med_income, data = sen_no2)
 
 no2_ols %>% 
   broom::tidy() %>% 
@@ -757,8 +907,8 @@ no2_ols %>%
 lm.LMtests(no2_ols, wgt_no2, test=c("LMerr","RLMerr","LMlag","RLMlag","SARMA"), zero.policy = TRUE)
 
 no2_lag_re <- lagsarlm(no2_diff ~ d_ro2 + delta_4 + delta_6 + d_ng + d_d2 + bus + hvytrk + 
-                        medtrk + car + avg_year + med_income, data = sen_no2, listw = wgt_no2, 
-                      tol.solve = 1e-20, zero.policy = TRUE)
+                         medtrk + car + avg_year + med_income, data = sen_no2, listw = wgt_no2, 
+                       tol.solve = 1e-20, zero.policy = TRUE)
 
 summary(so2_lag_re)$Coef %>% 
   as_tibble(rownames = 'term') %>% 
